@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { Request, Response } from 'express';
 
 interface PrismaKnownRequestError {
@@ -35,6 +36,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
     const path = request.url;
     const method = request.method;
+    const requestId = this.getRequestId(request);
+    response.header('X-Request-ID', requestId);
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'Internal server error';
@@ -121,6 +124,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
       errors,
       timestamp: new Date().toISOString(),
       path,
+      requestId,
     });
+  }
+
+  private getRequestId(request: Request): string {
+    const header = request.headers['x-request-id'];
+    const candidate = Array.isArray(header) ? header[0] : header;
+    return typeof candidate === 'string' &&
+      /^[A-Za-z0-9._:-]{1,128}$/.test(candidate)
+      ? candidate
+      : randomUUID();
   }
 }
